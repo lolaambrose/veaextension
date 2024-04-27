@@ -1,5 +1,1 @@
-export {};
-
-import { ApiClient } from "./api/ApiClient";
-
-console.log(ApiClient.getForbiddenWords());
+console.log("Background -> started");

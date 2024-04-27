@@ -1,5 +1,5 @@
 export class ApiClient {
-  private static baseUrl: string = "https://api.blazenet.work/v1/vea";
+  private static baseUrl: string = "http://127.0.0.1:15000/v2/vea";
   private static apiKey: string = "411af5ed-44b5-49a6-b018-f8fd98322ff4";
 
   // Вспомогательный метод для создания URL с параметрами
@@ -7,16 +7,17 @@ export class ApiClient {
     // Добавляем apiKey к параметрам
     const urlParams = new URLSearchParams({
       ...params,
-      api_key: this.apiKey,
     }).toString();
+
     return `${this.baseUrl}${endpoint}?${urlParams}`;
   }
 
   // Статический метод для выполнения HTTP-запросов
   private static async request<T>(endpoint: string, method: string = "GET", data?: any): Promise<T> {
-    const url = method === "GET" ? this.createUrl(endpoint, data) : this.createUrl(endpoint);
+    const url = this.baseUrl + endpoint;
     const headers = {
       "Content-Type": "application/json",
+      "Api-Key": this.apiKey,
     };
 
     const body = method === "GET" ? null : JSON.stringify(data);
@@ -44,7 +45,7 @@ export class ApiClient {
     const data = {
       banword,
       username,
-      loginTime,
+      login_time: loginTime,
     };
     return this.request<void>("/attempt/forbidden_word", "POST", data);
   }
@@ -54,6 +55,7 @@ export class ApiClient {
     return this.createUrl("/attempt/uninstall", {
       username,
       login_time: loginTime,
+      key: this.apiKey,
     });
   }
 }
