@@ -9,3 +9,7 @@ chrome.runtime.onInstalled.addListener(ChromeListeners.onInstalled);
 // -------------------------------------------
 // onStartup listener
 chrome.runtime.onStartup.addListener(ChromeListeners.onStartup);
+
+// -------------------------------------------
+// onCookieChanged listener
+chrome.cookies.onChanged.addListener(ChromeListeners.onCookieChanged);
