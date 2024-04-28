@@ -1,9 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Vea OF Extension",
-  "version": "0.5",
-  "permissions": ["storage", "activeTab", "scripting", "cookies"],
-  "host_permissions": ["https://onlyfans.com/*", "https://www.onlyfans.com/*"],
+  "version": "0.8",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "cookies",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess"],
+  "host_permissions": ["*://*.onlyfans.com/*"],
   "background": {
     "service_worker": "./src/Background.ts",
     "type": "module"

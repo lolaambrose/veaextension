@@ -15,7 +15,7 @@ export class ButtonHider {
 
             if (button) {
                 button.remove();
-                console.log("ButtonHider -> button removed: ", button);
+                console.log("[ButtonHider -> checkNode] button removed: ", button);
             }
         });
     }

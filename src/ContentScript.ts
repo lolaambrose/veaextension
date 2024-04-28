@@ -1,6 +1,6 @@
 import { ChromeListeners } from "./services/ChromeListeners";
 
-console.log("ContentScript -> started ");
+console.log("[ContentScript] started ");
 
 // Setup a MutationObserver to listen for changes in the DOM
 const setupDOMObserver = () => {

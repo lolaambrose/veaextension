@@ -12,8 +12,7 @@ export class Utils {
 
             return url;
         } else {
-            console.log("Utils -> setUninstallHook: username or loginTime is null");
-            return null;
+            throw new Error("Username or loginTime is not set");
         }
     }
 }

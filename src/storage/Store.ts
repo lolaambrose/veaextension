@@ -5,12 +5,37 @@ export class Store {
     private usernameListeners: ((value: string | null) => void)[] = [];
     private loginTimeListeners: ((value: number | null) => void)[] = [];
     private forbiddenWordsListeners: ((value: string[] | null) => void)[] = [];
+    private isBlockingListeners: ((value: boolean | null) => void)[] = [];
+
+    // Constructor - subscribing to Chrome API messaging system
+    // https://developer.chrome.com/docs/extensions/mv3/messaging/
+    constructor() {
+        chrome.storage.onChanged.addListener((changes, namespace) => {
+            if (namespace === "local") {
+                //console.log("Store -> storage.onChanged: ", changes, namespace);
+                if (changes.username) {
+                    this.notifyUsernameListeners(changes.username.newValue);
+                }
+                if (changes.loginTime) {
+                    this.notifyLoginTimeListeners(changes.loginTime.newValue);
+                }
+                if (changes.forbiddenWords) {
+                    this.notifyForbiddenWordsListeners(
+                        changes.forbiddenWords.newValue,
+                    );
+                }
+                if (changes.isBlocking) {
+                    this.notifyIsBlockingListeners(changes.isBlocking.newValue);
+                }
+            }
+        });
+    }
 
     // Singleton getter
     public static get instance(): Store {
         if (!Store._instance) {
             Store._instance = new Store();
-            console.log("Store -> instance created");
+            console.log("[Store] instance created");
         }
         return Store._instance;
     }
@@ -18,15 +43,23 @@ export class Store {
     // -------------------------------------------
     // Notify listeners
     private notifyUsernameListeners(value: string | null) {
+        console.log("[Store -> notifyUsernameListeners] ", value);
         this.usernameListeners.forEach((listener) => listener(value));
     }
 
     private notifyLoginTimeListeners(value: number | null) {
+        console.log("[Store -> notifyLoginTimeListeners] ", value);
         this.loginTimeListeners.forEach((listener) => listener(value));
     }
 
     private notifyForbiddenWordsListeners(value: string[] | null) {
+        console.log("[Store -> notifyForbiddenWordsListeners] ", value);
         this.forbiddenWordsListeners.forEach((listener) => listener(value));
+    }
+
+    private notifyIsBlockingListeners(value: boolean | null) {
+        console.log("[Store -> notifyIsBlockingListeners] ", value);
+        this.isBlockingListeners.forEach((listener) => listener(value));
     }
 
     // -------------------------------------------
@@ -46,10 +79,39 @@ export class Store {
     public set forbiddenWords(value: string[] | null) {
         chrome.storage.local.set({ forbiddenWords: value }, () => {
             if (chrome.runtime.lastError) {
-                console.log("Store -> set forbiddenWords error: ", chrome.runtime.lastError.message);
+                console.log(
+                    "[Store -> set forbiddenWords] error: ",
+                    chrome.runtime.lastError.message,
+                );
             } else {
-                this.notifyForbiddenWordsListeners(value);
-                console.log("Store -> forbiddenWords updated:", value);
+                //this.notifyForbiddenWordsListeners(value);
+            }
+        });
+    }
+
+    // -------------------------------------------
+    // isBlocking getter/setter
+    public async getIsBlocking(): Promise<boolean | null> {
+        return new Promise((resolve, reject) => {
+            chrome.storage.local.get(["isBlocking"], (result) => {
+                if (chrome.runtime.lastError) {
+                    reject(chrome.runtime.lastError);
+                } else {
+                    resolve(result.isBlocking);
+                }
+            });
+        });
+    }
+
+    public set isBlocking(value: boolean | null) {
+        chrome.storage.local.set({ isBlocking: value }, () => {
+            if (chrome.runtime.lastError) {
+                console.log(
+                    "[Store -> set isBlocking] error: ",
+                    chrome.runtime.lastError.message,
+                );
+            } else {
+                //this.notifyForbiddenWordsListeners(value);
             }
         });
     }
@@ -70,10 +132,12 @@ export class Store {
     public set username(value: string | null) {
         chrome.storage.local.set({ username: value }, () => {
             if (chrome.runtime.lastError) {
-                console.log("Store -> set username error: ", chrome.runtime.lastError);
+                console.log(
+                    "Store -> set username error: ",
+                    chrome.runtime.lastError,
+                );
             } else {
-                this.notifyUsernameListeners(value);
-                console.log("Store -> username updated: ", value);
+                //this.notifyUsernameListeners(value);
             }
         });
     }
@@ -95,10 +159,12 @@ export class Store {
     public set loginTime(value: number | null) {
         chrome.storage.local.set({ loginTime: value }, () => {
             if (chrome.runtime.lastError) {
-                console.log("Store -> set loginTime error: ", chrome.runtime.lastError);
+                console.log(
+                    "[Store -> set loginTime] error: ",
+                    chrome.runtime.lastError,
+                );
             } else {
-                this.notifyLoginTimeListeners(value);
-                console.log("Store -> loginTime updated: ", value);
+                //this.notifyLoginTimeListeners(value);
             }
         });
     }
@@ -117,17 +183,37 @@ export class Store {
         this.forbiddenWordsListeners.push(listener);
     }
 
+    public onIsBlockingChange(listener: (value: boolean | null) => void) {
+        this.isBlockingListeners.push(listener);
+    }
+
     // -------------------------------------------
     // Listener removers
     public removeUsernameChangeListener(listener: (value: string | null) => void) {
-        this.usernameListeners = this.usernameListeners.filter((l) => l !== listener);
+        this.usernameListeners = this.usernameListeners.filter(
+            (l) => l !== listener,
+        );
     }
 
     public removeLoginTimeChangeListener(listener: (value: number | null) => void) {
-        this.loginTimeListeners = this.loginTimeListeners.filter((l) => l !== listener);
+        this.loginTimeListeners = this.loginTimeListeners.filter(
+            (l) => l !== listener,
+        );
     }
 
-    public removeForbiddenWordsChangeListener(listener: (value: string[] | null) => void) {
-        this.forbiddenWordsListeners = this.forbiddenWordsListeners.filter((l) => l !== listener);
+    public removeForbiddenWordsChangeListener(
+        listener: (value: string[] | null) => void,
+    ) {
+        this.forbiddenWordsListeners = this.forbiddenWordsListeners.filter(
+            (l) => l !== listener,
+        );
+    }
+
+    public removeIsBlockingChangeListener(
+        listener: (value: boolean | null) => void,
+    ) {
+        this.isBlockingListeners = this.isBlockingListeners.filter(
+            (l) => l !== listener,
+        );
     }
 }

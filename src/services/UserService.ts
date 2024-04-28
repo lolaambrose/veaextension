@@ -5,8 +5,10 @@ export class UserService {
     // -------------------------------------------
     // Initializing the UserService
     public static init() {
+        console.log("[UserService -> init]");
+
         Store.instance.onUsernameChange((username) =>
-            this.onUsernameChange(username),
+            UserService.onUsernameChange(username),
         );
     }
 
@@ -48,20 +50,20 @@ export class UserService {
         if (username) {
             Store.instance.loginTime = Date.now();
             console.log(
-                "UserService -> onUsernameChange: changed loginTime",
+                "[UserService -> onUsernameChange] changed loginTime",
                 await Store.instance.getLoginTime(),
             );
 
             Utils.updateUninstallHook()
                 .then((result) => {
                     console.log(
-                        "UserService -> onUsernameChange: setUninstallHook set to ",
+                        "[UserService -> onUsernameChange] setUninstallHook set to ",
                         result,
                     );
                 })
                 .catch((e) => {
                     console.error(
-                        "UserService -> onUsernameChange: setUninstallHook error",
+                        "[UserService -> onUsernameChange] setUninstallHook error",
                         e,
                     );
                 });

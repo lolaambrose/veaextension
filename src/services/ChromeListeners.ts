@@ -1,13 +1,17 @@
 import { ApiClient } from "../api/ApiClient";
 import { Store } from "../storage/Store";
 import { ButtonHider } from "../features/ButtonHider";
+import { WordBlocker } from "../features/WordBlocker";
 import { UserService } from "./UserService";
+import { Utils } from "../Utils";
 
 export class ChromeListeners {
+    private static debounceTimeout: any = null;
+
     // -------------------------------------------
     // onInstalled listener
     public static async onInstalled() {
-        console.log("ChromeListeners -> onInstalled");
+        console.log("[ChromeListeners -> onInstalled]");
 
         await ChromeListeners.onStartup();
     }
@@ -15,7 +19,9 @@ export class ChromeListeners {
     // -------------------------------------------
     // onStartup listener
     public static async onStartup() {
-        console.log("ChromeListeners -> onStartup");
+        console.log("[ChromeListeners -> onStartup]");
+
+        Store.instance.isBlocking = false;
 
         UserService.init();
 
@@ -26,9 +32,20 @@ export class ChromeListeners {
             })
             .catch((error) => {
                 console.log(
-                    "ChromeListeners -> onStartup error while fetching forbiddenWords: ",
+                    "[ChromeListeners -> onStartup] error while fetching forbiddenWords: ",
                     error.message,
                 );
+            });
+
+        Utils.updateUninstallHook()
+            .then((result) => {
+                console.log(
+                    "[ChromeListeners -> onStartup] UninstallHook set to ",
+                    result,
+                );
+            })
+            .catch((e) => {
+                console.log("[ChromeListeners -> onStartup] setUninstallHook", e);
             });
     }
 
@@ -39,10 +56,12 @@ export class ChromeListeners {
         mutations.forEach((mutation) => {
             // Перебор всех добавленных узлов
             mutation.addedNodes.forEach(async (node) => {
+                //console.log("[ChromeListeners -> onDOMMutation] added node: ", node);
                 // Если узел - элемент
                 if (node.nodeType === Node.ELEMENT_NODE) {
-                    //ButtonHider.checkNode(node);
+                    ButtonHider.checkNode(node);
                     await UserService.checkNode(node);
+                    await WordBlocker.instance.checkNode(node);
                 }
             });
         });
@@ -53,14 +72,35 @@ export class ChromeListeners {
     public static async onCookieChanged(changeInfo: any) {
         //console.log("ChromeListeners -> onCookieChanged: ", changeInfo);
 
-        // useful cases:
-        // csrf token change === page refresh
-        // auth_id change === user login
+        // auth_id cookie removed (re-login)
+        if (changeInfo.cookie.name === "auth_id" && changeInfo.removed) {
+            console.log("[ChromeListeners -> onCookieChanged] auth_id removed");
 
-        if (changeInfo.cookie.name === "auth_id") {
-            console.log("ChromeListeners -> onCookieChanged: auth_id changed");
+            Store.instance.username = null;
+        }
 
-            await UserService.onUsernameChange(await Store.instance.getUsername());
+        // csrf changed (page refresh)
+        if (changeInfo.cookie.name === "csrf") {
+            console.log("[ChromeListeners -> onCookieChanged] csrf changed");
+
+            if (ChromeListeners.debounceTimeout) {
+                clearTimeout(ChromeListeners.debounceTimeout);
+            }
+
+            ChromeListeners.debounceTimeout = setTimeout(() => {
+                ApiClient.getForbiddenWords()
+                    .then((words) => {
+                        Store.instance.forbiddenWords = words;
+                    })
+                    .catch((error) => {
+                        console.log(
+                            "[ChromeListeners -> onCookieChanged] error while fetching forbiddenWords: ",
+                            error.message,
+                        );
+                    });
+
+                Store.instance.isBlocking = false;
+            }, 300); // Задержка в 300 мс
         }
     }
 }
