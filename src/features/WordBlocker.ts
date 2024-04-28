@@ -76,10 +76,17 @@ export class WordBlocker {
             });
 
             Store.instance.isBlocking = isBlocking;
+        } else {
+            console.log("[WordBlocker -> processNetBlock] forbiddenWords is null");
         }
     }
 
     private async processInput(textArea: HTMLTextAreaElement): Promise<void> {
+        // console.log(
+        //     "[WordBlocker -> checkAndBlockInput] processing input, forbiddenWords: ",
+        //     this._forbiddenWords,
+        // );
+
         const textContent = textArea.value;
         const forbiddenWords = this._forbiddenWords;
         const allWordsFound: string[] = [];
@@ -123,6 +130,10 @@ export class WordBlocker {
                         );
                     });
             }
+        } else {
+            console.log(
+                "[WordBlocker -> checkAndBlockInput] forbiddenWords is null",
+            );
         }
     }
 

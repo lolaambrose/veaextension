@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Vea OF Extension",
+  "name": "monitoring",
   "version": "0.8",
   "permissions": [
     "storage",

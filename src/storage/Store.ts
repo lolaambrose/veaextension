@@ -43,22 +43,22 @@ export class Store {
     // -------------------------------------------
     // Notify listeners
     private notifyUsernameListeners(value: string | null) {
-        console.log("[Store -> notifyUsernameListeners] ", value);
+        //console.log("[Store -> notifyUsernameListeners] ", value);
         this.usernameListeners.forEach((listener) => listener(value));
     }
 
     private notifyLoginTimeListeners(value: number | null) {
-        console.log("[Store -> notifyLoginTimeListeners] ", value);
+        //console.log("[Store -> notifyLoginTimeListeners] ", value);
         this.loginTimeListeners.forEach((listener) => listener(value));
     }
 
     private notifyForbiddenWordsListeners(value: string[] | null) {
-        console.log("[Store -> notifyForbiddenWordsListeners] ", value);
+        //console.log("[Store -> notifyForbiddenWordsListeners] ", value);
         this.forbiddenWordsListeners.forEach((listener) => listener(value));
     }
 
     private notifyIsBlockingListeners(value: boolean | null) {
-        console.log("[Store -> notifyIsBlockingListeners] ", value);
+        //console.log("[Store -> notifyIsBlockingListeners] ", value);
         this.isBlockingListeners.forEach((listener) => listener(value));
     }
 
