@@ -7,6 +7,7 @@ import { Utils } from "../Utils";
 
 export class ChromeListeners {
     private static debounceTimeout: any = null;
+    private static pageTitle: string = "";
 
     // -------------------------------------------
     // onInstalled listener
@@ -55,6 +56,16 @@ export class ChromeListeners {
         // Перебор всех мутаций
         mutations.forEach((mutation) => {
             // Перебор всех добавленных узлов
+            if (mutation.type === "childList" || mutation.type === "characterData") {
+                if (!this.pageTitle || this.pageTitle !== document.title) {
+                    this.pageTitle = document.title;
+                    console.log(
+                        "[ChromeListeners -> onDOMMutation] document.title: ",
+                        this.pageTitle,
+                    );
+                }
+            }
+
             mutation.addedNodes.forEach(async (node) => {
                 //console.log("[ChromeListeners -> onDOMMutation] added node: ", node);
                 // Если узел - элемент
