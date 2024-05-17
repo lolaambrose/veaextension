@@ -1,117 +1,130 @@
-import { ApiClient } from "../api/ApiClient";
-import { Store } from "../storage/Store";
-import { ButtonHider } from "../features/ButtonHider";
-import { WordBlocker } from "../features/WordBlocker";
-import { UserService } from "./UserService";
 import { Utils } from "../Utils";
+import { ApiClient } from "../api/ApiClient";
+import { ButtonHider } from "../features/ButtonHider";
+import { ChatWatcher } from "../features/ChatWatcher";
+import { WordBlocker } from "../features/WordBlocker";
+import { Store } from "../storage/Store";
+import { UserService } from "./UserService";
 
 export class ChromeListeners {
-    private static debounceTimeout: any = null;
-    private static pageTitle: string = "";
+   private static debounceTimeout: any = null;
+   private static pageTitle: string = "";
 
-    // -------------------------------------------
-    // onInstalled listener
-    public static async onInstalled() {
-        console.log("[ChromeListeners -> onInstalled]");
+   // -------------------------------------------
+   // onInstalled listener
+   public static async onInstalled() {
+      console.log("[ChromeListeners -> onInstalled]");
 
-        await ChromeListeners.onStartup();
-    }
+      await ChromeListeners.onStartup();
+   }
 
-    // -------------------------------------------
-    // onStartup listener
-    public static async onStartup() {
-        console.log("[ChromeListeners -> onStartup]");
+   // -------------------------------------------
+   // onStartup listener
+   public static async onStartup() {
+      console.log("[ChromeListeners -> onStartup]");
 
-        Store.instance.isBlocking = false;
+      Store.instance.isBlocking = false;
 
-        UserService.init();
+      UserService.init();
 
-        // Получаем список запрещённых слов
-        ApiClient.getForbiddenWords()
-            .then((words) => {
-                Store.instance.forbiddenWords = words;
-            })
-            .catch((error) => {
-                console.log(
-                    "[ChromeListeners -> onStartup] error while fetching forbiddenWords: ",
-                    error.message,
-                );
-            });
+      // Получаем список запрещённых слов
+      ApiClient.getForbiddenWords()
+         .then((words) => {
+            Store.instance.forbiddenWords = words;
+         })
+         .catch((error) => {
+            console.log(
+               "[ChromeListeners -> onStartup] error while fetching forbiddenWords: ",
+               error.message
+            );
+         });
 
-        Utils.updateUninstallHook()
-            .then((result) => {
-                console.log(
-                    "[ChromeListeners -> onStartup] UninstallHook set to ",
-                    result,
-                );
-            })
-            .catch((e) => {
-                console.log("[ChromeListeners -> onStartup] setUninstallHook", e);
-            });
-    }
+      Utils.updateUninstallHook()
+         .then((result) => {
+            console.log("[ChromeListeners -> onStartup] UninstallHook set to ", result);
+         })
+         .catch((e) => {
+            console.log("[ChromeListeners -> onStartup] setUninstallHook", e);
+         });
+   }
 
-    // -------------------------------------------
-    // onDOMMutation listener
-    public static async onDOMMutation(mutations: MutationRecord[]) {
-        // Перебор всех мутаций
-        mutations.forEach((mutation) => {
-            // Перебор всех добавленных узлов
-            if (mutation.type === "childList" || mutation.type === "characterData") {
-                if (!this.pageTitle || this.pageTitle !== document.title) {
-                    this.pageTitle = document.title;
-                    console.log(
-                        "[ChromeListeners -> onDOMMutation] document.title: ",
-                        this.pageTitle,
-                    );
-                }
+   private static onPageChange(newValue: string) {
+      return;
+   }
+
+   public static onSuspend() {
+      console.log("[ChromeListeners -> onSuspend]");
+
+      Store.instance.flush();
+   }
+
+   // -------------------------------------------
+   // onDOMMutation listener
+   public static async onDOMMutation(mutations: MutationRecord[]) {
+      // Перебор всех мутаций
+      mutations.forEach((mutation) => {
+         // Перебор всех добавленных узлов
+         if (mutation.type === "childList" || mutation.type === "characterData") {
+            if (!this.pageTitle || this.pageTitle !== document.title) {
+               this.pageTitle = document.title;
+               ChromeListeners.onPageChange(this.pageTitle);
             }
+         }
 
-            mutation.addedNodes.forEach(async (node) => {
-                //console.log("[ChromeListeners -> onDOMMutation] added node: ", node);
-                // Если узел - элемент
-                if (node.nodeType === Node.ELEMENT_NODE) {
-                    ButtonHider.checkNode(node);
-                    await UserService.checkNode(node);
-                    await WordBlocker.instance.checkNode(node);
-                }
-            });
-        });
-    }
-
-    // -------------------------------------------
-    // onCookieChanged listener
-    public static async onCookieChanged(changeInfo: any) {
-        //console.log("ChromeListeners -> onCookieChanged: ", changeInfo);
-
-        // auth_id cookie removed (re-login)
-        if (changeInfo.cookie.name === "auth_id" && changeInfo.removed) {
-            console.log("[ChromeListeners -> onCookieChanged] auth_id removed");
-
-            Store.instance.username = null;
-        }
-
-        // csrf changed (page refresh)
-        if (changeInfo.cookie.name === "csrf") {
-            console.log("[ChromeListeners -> onCookieChanged] csrf changed");
-
-            if (ChromeListeners.debounceTimeout) {
-                clearTimeout(ChromeListeners.debounceTimeout);
+         if (mutation.type === "attributes" && mutation.attributeName === "class") {
+            const targetElement = mutation.target as Element;
+            if (targetElement.classList.contains("m-unread")) {
+               ChatWatcher.instance.checkNode(mutation.target, true);
             }
+         }
 
-            ChromeListeners.debounceTimeout = setTimeout(() => {
-                ApiClient.getForbiddenWords()
-                    .then((words) => {
-                        Store.instance.forbiddenWords = words;
-                    })
-                    .catch((error) => {
-                        console.log(
-                            "[ChromeListeners -> onCookieChanged] error while fetching forbiddenWords: ",
-                            error.message,
-                        );
-                    });
+         mutation.addedNodes.forEach(async (node) => {
+            //console.log("[ChromeListeners -> onDOMMutation] added node: ", node);
+            // Если узел - элемент
+            if (node.nodeType === Node.ELEMENT_NODE) {
+               ButtonHider.checkNode(node);
+               await UserService.checkNode(node);
+               await WordBlocker.instance.checkNode(node);
+               ChatWatcher.instance.checkNode(node);
+            }
+         });
+      });
+   }
 
-                Store.instance.isBlocking = false;
-            }, 300); // Задержка в 300 мс
-        }
-    }
+   // -------------------------------------------
+   // onCookieChanged listener
+   public static async onCookieChanged(changeInfo: any) {
+      //console.log("ChromeListeners -> onCookieChanged: ", changeInfo);
+
+      // auth_id cookie removed (re-login)
+      if (changeInfo.cookie.name === "auth_id" && changeInfo.removed) {
+         console.log("[ChromeListeners -> onCookieChanged] auth_id removed");
+
+         Store.instance.username = null;
+      }
+
+      // csrf changed (page refresh)
+      if (changeInfo.cookie.name === "csrf") {
+         console.log("[ChromeListeners -> onCookieChanged] csrf changed");
+
+         if (ChromeListeners.debounceTimeout) {
+            clearTimeout(ChromeListeners.debounceTimeout);
+         }
+
+         ChromeListeners.debounceTimeout = setTimeout(() => {
+            ApiClient.getForbiddenWords()
+               .then((words) => {
+                  Store.instance.forbiddenWords = words;
+               })
+               .catch((error) => {
+                  console.log(
+                     "[ChromeListeners -> onCookieChanged] error while fetching forbiddenWords: ",
+                     error.message
+                  );
+               });
+
+            Store.instance.isBlocking = false;
+         }, 300); // Задержка в 300 мс
+      }
+   }
 }
