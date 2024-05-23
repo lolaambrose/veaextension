@@ -7,7 +7,7 @@ export class Utils {
       const loginTime = await Store.instance.getLoginTime();
 
       if (username && loginTime) {
-         const url = ApiClient.getUninstallCallback(username, loginTime);
+         const url = await ApiClient.getUninstallCallback(username, loginTime);
          chrome.runtime.setUninstallURL(url);
 
          return url;

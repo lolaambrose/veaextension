@@ -1,23 +1,29 @@
 {
-  "manifest_version": 3,
-  "name": "monitoring",
-  "version": "0.8",
-  "permissions": [
-    "storage",
-    "activeTab",
-    "scripting",
-    "cookies",
-    "declarativeNetRequest",
-    "declarativeNetRequestWithHostAccess"],
-  "host_permissions": ["*://*.onlyfans.com/*"],
-  "background": {
-    "service_worker": "./src/Background.ts",
-    "type": "module"
-  },
-  "content_scripts": [
-    {
-      "matches": ["https://onlyfans.com/*"],
-      "js": ["./src/ContentScript.ts"]
-    }
-  ]
+   "manifest_version": 3,
+   "name": "vea/extension.",
+   "version": "0.8",
+   "permissions": [
+      "storage",
+      "activeTab",
+      "scripting",
+      "cookies",
+      "declarativeNetRequest",
+      "declarativeNetRequestWithHostAccess",
+      "identity"
+   ],
+   "host_permissions": ["*://*.onlyfans.com/*"],
+   "background": {
+      "service_worker": "./src/Background.ts",
+      "type": "module"
+   },
+   "content_scripts": [
+      {
+         "matches": ["https://onlyfans.com/*"],
+         "js": ["./src/ContentScript.ts"]
+      }
+   ],
+   "action": {
+      "default_popup": "src/pages/popup.html",
+      "default_title": "Login"
+   }
 }

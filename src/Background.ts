@@ -1,20 +1,29 @@
-import { ChatWatcher } from "./features/ChatWatcher";
 import { ChromeListeners } from "./services/ChromeListeners";
 import { Store } from "./storage/Store";
 
 console.log("[Background] started");
 
-// -------------------------------------------
-// onInstalled listener
-chrome.runtime.onInstalled.addListener(ChromeListeners.onInstalled);
+async function waitForAuthorization() {
+   const checkInterval = 500; // Интервал проверки в миллисекундах
 
-// -------------------------------------------
-// onStartup listener
-chrome.runtime.onStartup.addListener(ChromeListeners.onStartup);
+   const intervalId = setInterval(async () => {
+      const isAuthorized = await Store.instance.getIsAuthorized();
+      if (isAuthorized) {
+         clearInterval(intervalId);
+         console.log("[Background] User is authorized, initializing ChromeListeners");
+         await ChromeListeners.init();
+      }
+   }, checkInterval);
+}
 
-// -------------------------------------------
-// onCookieChanged listener
-chrome.cookies.onChanged.addListener(ChromeListeners.onCookieChanged);
+waitForAuthorization();
+
+Store.instance.onIsAuthorizedChange((isAuthorized) => {
+   if (!isAuthorized) {
+      ChromeListeners.destroy();
+      waitForAuthorization();
+   }
+});
 
 // -------------------------------------------
 // isBlocking listener
@@ -60,11 +69,3 @@ Store.instance.onIsBlockingChange((value) => {
          });
    }
 });
-
-// -------------------------------------------
-// onSuspend listener
-chrome.runtime.onSuspend.addListener(ChromeListeners.onSuspend);
-
-// -------------------------------------------
-// ChatWatcher
-ChatWatcher.instance.monitorUnreadChats();

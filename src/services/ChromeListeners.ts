@@ -1,5 +1,6 @@
 import { Utils } from "../Utils";
 import { ApiClient } from "../api/ApiClient";
+import { Auth } from "../api/Auth";
 import { ButtonHider } from "../features/ButtonHider";
 import { ChatWatcher } from "../features/ChatWatcher";
 import { WordBlocker } from "../features/WordBlocker";
@@ -9,6 +10,41 @@ import { UserService } from "./UserService";
 export class ChromeListeners {
    private static debounceTimeout: any = null;
    private static pageTitle: string = "";
+
+   public static async init() {
+      // -------------------------------------------
+      // onInstalled listener
+      chrome.runtime.onInstalled.addListener(ChromeListeners.onInstalled);
+
+      // -------------------------------------------
+      // onStartup listener
+      chrome.runtime.onStartup.addListener(ChromeListeners.onStartup);
+
+      // -------------------------------------------
+      // onCookieChanged listener
+      chrome.cookies.onChanged.addListener(ChromeListeners.onCookieChanged);
+
+      // -------------------------------------------
+      // onSuspend listener
+      chrome.runtime.onSuspend.addListener(ChromeListeners.onSuspend);
+
+      // -------------------------------------------
+      // ChatWatcher
+      ChatWatcher.instance.monitorUnreadChats();
+
+      this.onStartup();
+   }
+
+   public static async destroy() {
+      // Удаление всех слушателей событий
+      chrome.runtime.onInstalled.removeListener(ChromeListeners.onInstalled);
+      chrome.runtime.onStartup.removeListener(ChromeListeners.onStartup);
+      chrome.cookies.onChanged.removeListener(ChromeListeners.onCookieChanged);
+      chrome.runtime.onSuspend.removeListener(ChromeListeners.onSuspend);
+
+      // Остановка мониторинга чатов
+      ChatWatcher.instance.stopMonitoringUnreadChats();
+   }
 
    // -------------------------------------------
    // onInstalled listener
@@ -24,8 +60,19 @@ export class ChromeListeners {
       console.log("[ChromeListeners -> onStartup]");
 
       Store.instance.isBlocking = false;
+      await UserService.init();
 
-      UserService.init();
+      const login = await Store.instance.getLogin();
+      const password = await Store.instance.getPassword();
+
+      if (login && password) {
+         await Auth.authorize(login, password);
+      }
+
+      const isAuthorized = await Auth.checkAuthorization();
+      if (!isAuthorized) return;
+
+      await Auth.fetchUser();
 
       // Получаем список запрещённых слов
       ApiClient.getForbiddenWords()
@@ -48,8 +95,12 @@ export class ChromeListeners {
          });
    }
 
-   private static onPageChange(newValue: string) {
-      return;
+   private static async onPageChange(newValue: string) {
+      const userInfo = await Store.instance.getUserInfo();
+
+      // if (Auth.isAuthorized && !userInfo) {
+      //    Auth.fetchUser();
+      // }
    }
 
    public static onSuspend() {
@@ -67,7 +118,9 @@ export class ChromeListeners {
          if (mutation.type === "childList" || mutation.type === "characterData") {
             if (!this.pageTitle || this.pageTitle !== document.title) {
                this.pageTitle = document.title;
-               ChromeListeners.onPageChange(this.pageTitle);
+               ChromeListeners.onPageChange(this.pageTitle).then(() => {
+                  console.log("[ChromeListeners -> onDOMMutation] onPageChange");
+               });
             }
          }
 

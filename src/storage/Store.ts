@@ -1,3 +1,5 @@
+import { Auth } from "../api/Auth";
+import { IUser } from "../api/interfaces";
 import { IChatEntity } from "../features/interfaces/IChatEntity";
 
 export class Store {
@@ -13,11 +15,21 @@ export class Store {
    private forbiddenWordsListeners: ((value: string[] | null) => void)[] = [];
    private isBlockingListeners: ((value: boolean | null) => void)[] = [];
    private unreadChatsListeners: ((chats: any[]) => void)[] = [];
+   private jwtTokenListeners: ((value: string | null) => void)[] = [];
+   private refreshTokenListeners: ((value: string | null) => void)[] = [];
+   private userInfoListeners: ((value: IUser | null) => void)[] = [];
+   private isAuthorizedListeners: ((value: boolean | null) => void)[] = [];
+   private passwordListeners: ((value: string | null) => void)[] = [];
+   private loginListeners: ((value: string | null) => void)[] = [];
 
    // Constructor - subscribing to Chrome API messaging system
    // https://developer.chrome.com/docs/extensions/mv3/messaging/
    constructor() {
-      this.flush();
+      chrome.storage.local.get(["unreadChats"], (result) => {
+         this.unreadChats = result.unreadChats || [];
+
+         console.log("[Store] unreadChats fetched from storage: ", this.unreadChats);
+      });
 
       chrome.storage.onChanged.addListener((changes, namespace) => {
          if (namespace === "local") {
@@ -37,13 +49,35 @@ export class Store {
             if (changes.unreadChats) {
                this.notifyUnreadChatsListeners(changes.unreadChats.newValue);
             }
+            if (changes.jwtToken) {
+               this.notifyJwtTokenListeners(changes.jwtToken.newValue);
+            }
+            if (changes.refreshToken) {
+               this.notifyRefreshTokenListeners(changes.refreshToken.newValue);
+            }
+            if (changes.userInfo) {
+               this.notifyUserInfoListeners(changes.userInfo.newValue);
+            }
+            if (changes.isAuthorized) {
+               this.notifyIsAuthorizedListeners(changes.isAuthorized.newValue);
+            }
+            if (changes.password) {
+               this.notifyPasswordListeners(changes.password.newValue);
+            }
+            if (changes.login) {
+               this.notifyLoginListeners(changes.login.newValue);
+            }
          }
       });
    }
 
-   public flush() {
+   public async flush() {
+      console.log("[Store -> flush]");
+
       this.unreadChats = [];
       this.updateUnreadChatsStorage();
+
+      await Auth.logout(true);
    }
 
    // Singleton getter
@@ -57,6 +91,26 @@ export class Store {
 
    // -------------------------------------------
    // Notify listeners
+   private notifyPasswordListeners(value: string | null) {
+      console.log("[Store -> notifyPasswordListeners] ", value);
+      this.passwordListeners.forEach((listener) => listener(value));
+   }
+
+   private notifyLoginListeners(value: string | null) {
+      console.log("[Store -> notifyLoginListeners] ", value);
+      this.loginListeners.forEach((listener) => listener(value));
+   }
+
+   private notifyIsAuthorizedListeners(value: boolean | null) {
+      console.log("[Store -> notifyIsAuthorizedListeners] ", value);
+      this.isAuthorizedListeners.forEach((listener) => listener(value));
+   }
+
+   private notifyUserInfoListeners(value: IUser | null) {
+      console.log("[Store -> notifyUserInfoListeners] ", value);
+      this.userInfoListeners.forEach((listener) => listener(value));
+   }
+
    private notifyUsernameListeners(value: string | null) {
       //console.log("[Store -> notifyUsernameListeners] ", value);
       this.usernameListeners.forEach((listener) => listener(value));
@@ -80,6 +134,102 @@ export class Store {
    private notifyUnreadChatsListeners(chats: any[]) {
       console.log("[Store -> notifyUnreadChatsListeners] ", chats);
       this.unreadChatsListeners.forEach((listener) => listener(chats));
+   }
+
+   private notifyJwtTokenListeners(value: string | null) {
+      console.log("[Store -> notifyJwtTokenListeners] ", value);
+      this.jwtTokenListeners.forEach((listener) => listener(value));
+   }
+
+   private notifyRefreshTokenListeners(value: string | null) {
+      console.log("[Store -> notifyRefreshTokenListeners] ", value);
+      this.refreshTokenListeners.forEach((listener) => listener(value));
+   }
+
+   // -------------------------------------------
+   // Password/login getter/setter
+   public async getPassword(): Promise<string | null> {
+      return new Promise((resolve, reject) => {
+         chrome.storage.local.get(["password"], (result) => {
+            if (chrome.runtime.lastError) {
+               reject(chrome.runtime.lastError);
+            } else {
+               resolve(result.password);
+            }
+         });
+      });
+   }
+
+   public set password(value: string | null) {
+      chrome.storage.local.set({ password: value }, () => {
+         if (chrome.runtime.lastError) {
+            console.log("[Store -> set password] error: ", chrome.runtime.lastError);
+         }
+      });
+   }
+
+   public async getLogin(): Promise<string | null> {
+      return new Promise((resolve, reject) => {
+         chrome.storage.local.get(["login"], (result) => {
+            if (chrome.runtime.lastError) {
+               reject(chrome.runtime.lastError);
+            } else {
+               resolve(result.login);
+            }
+         });
+      });
+   }
+
+   public set login(value: string | null) {
+      chrome.storage.local.set({ login: value }, () => {
+         if (chrome.runtime.lastError) {
+            console.log("[Store -> set login] error: ", chrome.runtime.lastError);
+         }
+      });
+   }
+
+   // -------------------------------------------
+   // isAuthorized getter/setter
+   public async getIsAuthorized(): Promise<boolean | null> {
+      return new Promise((resolve, reject) => {
+         chrome.storage.local.get(["isAuthorized"], (result) => {
+            if (chrome.runtime.lastError) {
+               reject(chrome.runtime.lastError);
+            } else {
+               resolve(result.isAuthorized);
+            }
+         });
+      });
+   }
+
+   public set isAuthorized(value: boolean | null) {
+      chrome.storage.local.set({ isAuthorized: value }, () => {
+         if (chrome.runtime.lastError) {
+            console.log("[Store -> set isAuthorized] error: ", chrome.runtime.lastError);
+         }
+      });
+   }
+
+   // -------------------------------------------
+   // UserInfo getter/setter
+   public async getUserInfo(): Promise<IUser | null> {
+      return new Promise((resolve, reject) => {
+         chrome.storage.local.get(["userInfo"], (result) => {
+            if (chrome.runtime.lastError) {
+               reject(chrome.runtime.lastError);
+            } else {
+               resolve(result.userInfo);
+            }
+         });
+      });
+   }
+
+   public set userInfo(value: IUser | null) {
+      chrome.storage.local.set({ userInfo: value }, () => {
+         if (chrome.runtime.lastError) {
+            console.log("[Store -> set UserInfo] error: ", chrome.runtime.lastError);
+         }
+      });
    }
 
    // -------------------------------------------
@@ -216,6 +366,49 @@ export class Store {
          }
       });
    }
+   // -------------------------------------------
+   // JWT Token getter/setter
+   public async getJwtToken(): Promise<string | null> {
+      return new Promise((resolve, reject) => {
+         chrome.storage.local.get(["jwtToken"], (result) => {
+            if (chrome.runtime.lastError) {
+               reject(chrome.runtime.lastError);
+            } else {
+               resolve(result.jwtToken);
+            }
+         });
+      });
+   }
+
+   public set jwtToken(value: string | null) {
+      chrome.storage.local.set({ jwtToken: value }, () => {
+         if (chrome.runtime.lastError) {
+            console.log("Store -> set jwtToken error: ", chrome.runtime.lastError);
+         }
+      });
+   }
+
+   // -------------------------------------------
+   // Refresh token getter/setter
+   public async getRefreshToken(): Promise<string | null> {
+      return new Promise((resolve, reject) => {
+         chrome.storage.local.get(["refreshToken"], (result) => {
+            if (chrome.runtime.lastError) {
+               reject(chrome.runtime.lastError);
+            } else {
+               resolve(result.refreshToken);
+            }
+         });
+      });
+   }
+
+   public set refreshToken(value: string | null) {
+      chrome.storage.local.set({ refreshToken: value }, () => {
+         if (chrome.runtime.lastError) {
+            console.log("Store -> set refreshToken error: ", chrome.runtime.lastError);
+         }
+      });
+   }
 
    // -------------------------------------------
    // LoginTime getter/setter
@@ -243,6 +436,10 @@ export class Store {
 
    // -------------------------------------------
    // onChange listeners
+   public onIsAuthorizedChange(listener: (value: boolean | null) => void) {
+      this.isAuthorizedListeners.push(listener);
+   }
+
    public onUsernameChange(listener: (value: string | null) => void) {
       this.usernameListeners.push(listener);
    }
@@ -263,8 +460,24 @@ export class Store {
       this.unreadChatsListeners.push(listener);
    }
 
+   public onJwtTokenChange(listener: (value: string | null) => void) {
+      this.jwtTokenListeners.push(listener);
+   }
+
+   public onRefreshTokenChange(listener: (value: string | null) => void) {
+      this.refreshTokenListeners.push(listener);
+   }
+
+   public onUserInfoChange(listener: (value: IUser | null) => void) {
+      this.userInfoListeners.push(listener);
+   }
+
    // -------------------------------------------
    // Listener removers
+   public removeIsAuthorizedChangeListener(listener: (value: boolean | null) => void) {
+      this.isAuthorizedListeners = this.isAuthorizedListeners.filter((l) => l !== listener);
+   }
+
    public removeUsernameChangeListener(listener: (value: string | null) => void) {
       this.usernameListeners = this.usernameListeners.filter((l) => l !== listener);
    }
@@ -283,5 +496,17 @@ export class Store {
 
    public removeUnreadChatsChangeListener(listener: (chats: any[]) => void) {
       this.unreadChatsListeners = this.unreadChatsListeners.filter((l) => l !== listener);
+   }
+
+   public removeJwtTokenChangeListener(listener: (value: string | null) => void) {
+      this.jwtTokenListeners = this.jwtTokenListeners.filter((l) => l !== listener);
+   }
+
+   public removeRefreshTokenChangeListener(listener: (value: string | null) => void) {
+      this.refreshTokenListeners = this.refreshTokenListeners.filter((l) => l !== listener);
+   }
+
+   public removeUserInfoChangeListener(listener: (value: IUser | null) => void) {
+      this.userInfoListeners = this.userInfoListeners.filter((l) => l !== listener);
    }
 }

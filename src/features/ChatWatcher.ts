@@ -5,6 +5,8 @@ import { IChatEntity } from "./interfaces/IChatEntity";
 
 export class ChatWatcher {
    private static _instance: ChatWatcher | null = null;
+   private _interval: number = 5; // 5 минут
+   private _monitorIntervalId: number | null = null;
 
    private constructor() {}
 
@@ -46,7 +48,6 @@ export class ChatWatcher {
       });
    }
 
-   
    private processNode(message: Element) {
       const chatId = message.getAttribute("id");
 
@@ -66,15 +67,16 @@ export class ChatWatcher {
          time: time ? time : 0,
          element: message.outerHTML,
          notifiedTime: 0,
-      }; // Пример данных
+      };
 
       Store.instance.addUnreadChat(chatData);
       console.log("[ChatWatcher -> checkNode] Непрочитанное сообщение найдено: ", chatData);
    }
 
    public async monitorUnreadChats() {
-      setInterval(async () => {
+      this._monitorIntervalId = setInterval(async () => {
          const unreadChats = await Store.instance.getUnreadChats();
+
          if (unreadChats) {
             const username = await Store.instance.getUsername();
             const loginTime = await Store.instance.getLoginTime();
@@ -83,7 +85,7 @@ export class ChatWatcher {
             const chatsToUpdate: IChatEntity[] | null = [];
 
             unreadChats.forEach((chat) => {
-               const interval = 1 * 60 * 1000;
+               const interval = this._interval * 60 * 1000;
 
                if (chat.notifiedTime) {
                   const timeDifference = currentTimestamp - chat.notifiedTime;
@@ -117,5 +119,13 @@ export class ChatWatcher {
             }
          }
       }, 30000); // Проверка каждые 30 секунд
+   }
+
+   public stopMonitoringUnreadChats() {
+      if (this._monitorIntervalId) {
+         clearInterval(this._monitorIntervalId);
+         this._monitorIntervalId = null;
+         console.log("[ChatWatcher -> stopMonitoringUnreadChats] Monitoring stopped.");
+      }
    }
 }
